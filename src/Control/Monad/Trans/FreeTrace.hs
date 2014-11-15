@@ -13,7 +13,7 @@ module Control.Monad.Trans.FreeTrace
 , runTraceT
 ) where
 
-import Control.Applicative
+import Control.Applicative as A
 import Control.Monad
 import Control.Monad.Base
 import Control.Monad.Error.Class
@@ -40,6 +40,18 @@ data TraceF t e (mt ∷ * → *) m α where
 
 newtype TraceT t e mt m α = TraceT { _traceT ∷ ProgramT (TraceF t e mt m) m α }
 
+unViewT
+  ∷ Monad m
+  ⇒ ProgramViewT instr m α
+  → ProgramT instr m α
+unViewT (m :>>= k) = singleton m >>= k
+unViewT (Return a) = return a
+
+instance (Alternative m, Monad m) ⇒ Alternative (ProgramT instr m) where
+  empty = lift A.empty
+  m1 <|> m2 = join . lift . fmap unViewT $ viewT m1 <|> viewT m2
+
+deriving instance (Alternative m, Monad m) ⇒ Alternative (TraceT t e mt m)
 deriving instance Monad m ⇒ Applicative (TraceT t e mt m)
 deriving instance Monad m ⇒ Functor (TraceT t e mt m)
 deriving instance Monad m ⇒ Monad (TraceT t e mt m)
