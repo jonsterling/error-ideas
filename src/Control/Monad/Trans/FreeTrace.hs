@@ -29,20 +29,12 @@ import Data.Sequence as S hiding (singleton)
 
 import Control.Monad.Reader
 
--- | The functor for Free Trace
---
 data TraceF t e m α where
   Catch ∷ TraceT t e m α → (e → TraceT t e m α) → TraceF t e m α
   Read ∷ TraceF t e m (Seq t)
   Scope ∷ t → TraceT t e m α → TraceF t e m α
   Throw ∷ e → TraceF t e m α
 
--- | The Free Trace Monad.
---
---                    TraceT t e m     a
--- ~ ProgramT        (TraceF t e m)  m a
--- ~ FreeT (Coyoneda (TraceF t e m)) m a
--- ~ FreeT           (TraceF t e m)  m a
 newtype TraceT t e m α = TraceT { _traceT ∷ ProgramT (TraceF t e m) m α }
 
 deriving instance Monad m ⇒ Applicative (TraceT t e m)
