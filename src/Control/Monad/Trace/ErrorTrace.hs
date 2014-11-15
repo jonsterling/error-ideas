@@ -13,7 +13,6 @@ module Control.Monad.Trace.ErrorTrace
 import Control.Applicative
 import qualified Data.Foldable as F
 import Data.Monoid
--- import Data.Pointed
 import Data.Profunctor
 import Data.Sequence as S
 import Data.List
