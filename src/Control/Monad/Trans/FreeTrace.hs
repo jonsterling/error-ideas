@@ -32,13 +32,13 @@ import Data.Sequence as S hiding (singleton)
 
 import Control.Monad.Reader
 
-data TraceF t e mt m α where
+data TraceF t e (mt ∷ * → *) m α where
   Catch ∷ TraceT t e mt m α → (e → TraceT t e mt m α) → TraceF t e mt m α
   Read ∷ TraceF t e mt m (Seq t)
   Scope ∷ t → TraceT t e mt m α → TraceF t e mt m α
   Throw ∷ e → TraceF t e mt m α
 
-newtype TraceT t e (mt :: * -> *) m α = TraceT { _traceT ∷ ProgramT (TraceF t e mt m) m α }
+newtype TraceT t e mt m α = TraceT { _traceT ∷ ProgramT (TraceF t e mt m) m α }
 
 deriving instance Monad m ⇒ Applicative (TraceT t e mt m)
 deriving instance Monad m ⇒ Functor (TraceT t e mt m)
