@@ -63,12 +63,16 @@ runTraceT
   → EitherT (ErrorTrace t e) m α
 runTraceT = run S.empty . _traceT
 
-run ∷ Monad m ⇒ Seq t → ProgramT (TraceF t e m) m α → EitherT (ErrorTrace t e) m α
+run
+  ∷ Monad m
+  ⇒ Seq t
+  → ProgramT (TraceF t e m) m α
+  → EitherT (ErrorTrace t e) m α
 run ts m = EitherT $ runEitherT . go ts =<< viewT m
   where
-  go ∷ Monad m ⇒ Seq t → ProgramViewT (TraceF t e m) m α → EitherT (ErrorTrace t e) m α
-  go ts (Catch m h :>>= k) = run ts (_traceT m) `catchError` (run ts . _traceT . h . _etError) >>= run ts . k
-  go ts (Read :>>= k) = right ts >>= run ts . k
-  go ts (Scope t m :>>= k) = run (ts |> t) (_traceT m) >>= run ts . k
-  go ts (Throw e :>>= k) = left (ErrorTrace e ts) >>= run ts . k
-  go ts (Return a) = right a
+    go ∷ Monad m ⇒ Seq t → ProgramViewT (TraceF t e m) m α → EitherT (ErrorTrace t e) m α
+    go ts (Catch m h :>>= k) = run ts (_traceT m) `catchError` (run ts . _traceT . h . _etError) >>= run ts . k
+    go ts (Read :>>= k) = right ts >>= run ts . k
+    go ts (Scope t m :>>= k) = run (ts |> t) (_traceT m) >>= run ts . k
+    go ts (Throw e :>>= k) = left (ErrorTrace e ts) >>= run ts . k
+    go ts (Return a) = right a
