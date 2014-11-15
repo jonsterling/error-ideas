@@ -17,10 +17,9 @@ import Control.Applicative as A
 import Control.Monad
 import Control.Monad.Base
 import Control.Monad.Error.Class
+import Control.Monad.Operational
 import Control.Monad.Reader.Class
 import Control.Monad.State.Class
-import Control.Monad.Operational
-import Control.Monad.Identity
 import Control.Monad.Trace.Class
 import Control.Monad.Trace.ErrorTrace
 import Control.Monad.Trans
