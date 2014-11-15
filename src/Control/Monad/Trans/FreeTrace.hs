@@ -9,7 +9,9 @@
 {-# LANGUAGE UnicodeSyntax #-}
 
 module Control.Monad.Trans.FreeTrace
-where
+( TraceT
+, runTraceT
+) where
 
 import Control.Applicative
 import Control.Monad
