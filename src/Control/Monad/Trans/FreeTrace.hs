@@ -76,8 +76,8 @@ run
   → EitherT (ErrorTrace t e mt) m α
 run ts m = EitherT $ runEitherT . go ts =<< viewT m
   where
-    go ts (Catch m h :>>= k) = run ts (_traceT m) `catchError` (run ts . _traceT . h . _etError) >>= run ts . k
+    go ts (Catch m h :>>= k) = return (run ts (_traceT m)) >>= (flip catchError (run ts . _traceT . h . _etError) >=> run ts . k)
     go ts (Read :>>= k) = right ts >>= run ts . k
     go ts (Scope t m :>>= k) = run (ts |> t) (_traceT m) >>= run ts . k
-    go ts (Throw e :>>= k) = left (ErrorTrace e (point ts)) >>= run ts . k
+    go ts (Throw e :>>= k) = left (ErrorTrace e $ point ts) >>= run ts . k
     go ts (Return a) = right a
