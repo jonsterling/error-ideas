@@ -30,6 +30,7 @@ library
                      , kan-extensions
                      , monad-control
                      , mtl
+                     , pointed
                      , profunctors
                      , transformers
                      , transformers-base
