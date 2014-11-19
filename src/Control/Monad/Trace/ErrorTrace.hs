@@ -29,14 +29,12 @@ instance (Monoid e, Monoid (ft (Seq t))) ⇒ Monoid (ErrorTrace t ft e) where
   mempty = ErrorTrace mempty mempty
   mappend (ErrorTrace e tr) (ErrorTrace e' tr') = ErrorTrace (e <> e') (tr <> tr')
 
-deriving instance (Show e, Show (ft (Seq t))) ⇒ Show (ErrorTrace t ft e)
-
--- instance (Show t, Show e) ⇒ Show (ErrorTrace t e mt) where
---   showsPrec p ErrorTrace{..} =
---     showParen (p > 10) $
---       foldr (.) id (intersperse (" ∥ "++) $ (foldr (.) id . intersperse ('.':) . fmap shows . F.toList) <$> _etTrace)
---       . (" ⇑ " ++)
---       . shows _etError
+instance (F.Foldable ft, Show t, Show e) ⇒ Show (ErrorTrace t ft e) where
+  showsPrec p ErrorTrace{..} =
+    showParen (p > 10) $
+      foldr (.) id (intersperse (" ∥ "++) $ (foldr (.) id . intersperse ('.':) . fmap shows . F.toList) <$> F.toList _etTrace)
+      . (" ⇑ " ++)
+      . shows _etError
 
 -- | An isomorphism @'ErrorTrace' t e ≅ (e, 'Seq' t)@.
 --
