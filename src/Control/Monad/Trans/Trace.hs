@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UnicodeSyntax #-}
@@ -24,24 +25,31 @@ import Control.Monad.Trans.Either
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Reader
 import Data.Monoid
+import Data.Pointed
 import Data.Sequence as S
 
 -- | A concrete monad transformer @'TraceT' t e m@ where @t@ is the type of
 -- tags/breadcrumbs, @e@ is the type of errors, and @m@ is the underlying monad.
 --
-newtype TraceT t e m α
+newtype TraceT t ft e m α
   = TraceT
-  { _traceT ∷ EitherT (ErrorTrace t e) (ReaderT (Seq t) m) α
-  } deriving (Functor, Monad, Applicative, Alternative, MonadIO, MonadBase b)
+  { _traceT ∷ EitherT (ErrorTrace t ft e) (ReaderT (Seq t) m) α
+  } deriving (Functor, Monad, Applicative, MonadIO, MonadBase b)
 
-instance Monad m ⇒ MonadError e (TraceT t e m) where
-  throwError e = readTrace >>= TraceT . left . ErrorTrace e . (:[])
+deriving instance
+  ( Monad m
+  , Monoid e
+  , Monoid (ft (Seq t))
+  ) ⇒ Alternative (TraceT t ft e m)
+
+instance (Monad m, Pointed ft) ⇒ MonadError e (TraceT t ft e m) where
+  throwError e = readTrace >>= TraceT . left . ErrorTrace e . point
   catchError (TraceT m) h = TraceT (lift $ runEitherT m) >>= either (h . _etError) return
 
-instance MonadTrans (TraceT t e) where
+instance MonadTrans (TraceT t ft e) where
   lift = TraceT . EitherT . (>>= return . Right) . lift
 
-instance Monad m ⇒ MonadTrace t (TraceT t e m) where
+instance Monad m ⇒ MonadTrace t (TraceT t ft e m) where
   traceScope t = TraceT . mapEitherT (withReaderT (|> t)) . _traceT
   readTrace = TraceT . EitherT $ ask >>= return . Right
 
@@ -52,21 +60,20 @@ runTraceT
   ∷ ( Functor m
     , Monad m
     )
-  ⇒ TraceT t e m α
-  → m (Either (ErrorTrace t e) α)
+  ⇒ TraceT t ft e m α
+  → m (Either (ErrorTrace t ft e) α)
 runTraceT (TraceT m) = runReaderT (runEitherT m) S.empty
 
-instance MonadTransControl (TraceT t e) where
-  newtype StT (TraceT t e) α = StTraceT { unStTraceT ∷ StT (ReaderT (Seq t)) (StT (EitherT (ErrorTrace t e)) α) }
+instance MonadTransControl (TraceT t ft e) where
+  newtype StT (TraceT t ft e) α = StTraceT { unStTraceT ∷ StT (ReaderT (Seq t)) (StT (EitherT (ErrorTrace t ft e)) α) }
   liftWith f = TraceT . liftWith $ \run → liftWith $ \run' → f $ liftM StTraceT . run' . run . _traceT
   {-# INLINE liftWith #-}
   restoreT = TraceT . restoreT . restoreT . liftM unStTraceT
   {-# INLINE restoreT #-}
 
-instance MonadBaseControl b m => MonadBaseControl b (TraceT t e m) where
-  newtype StM (TraceT t e m) α = StMTraceT { unStMTraceT ∷ ComposeSt (TraceT t e) m α }
+instance MonadBaseControl b m => MonadBaseControl b (TraceT t ft e m) where
+  newtype StM (TraceT t ft e m) α = StMTraceT { unStMTraceT ∷ ComposeSt (TraceT t ft e) m α }
   liftBaseWith = defaultLiftBaseWith StMTraceT
   {-# INLINE liftBaseWith #-}
   restoreM  = defaultRestoreM unStMTraceT
   {-# INLINE restoreM #-}
-

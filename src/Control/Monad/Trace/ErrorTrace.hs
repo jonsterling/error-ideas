@@ -1,5 +1,7 @@
 {-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Control.Monad.Trace.ErrorTrace
 ( ErrorTrace(..)
@@ -17,20 +19,20 @@ import Data.List
 
 -- | A datatype containing an error and its provenience(s).
 --
-data ErrorTrace t e
+data ErrorTrace t ft e
   = ErrorTrace
   { _etError ∷ !e -- ^ The error
-  , _etTrace ∷ ![Seq t] -- ^ The list of traces (for each path tried)
+  , _etTrace ∷ ft (Seq t) -- ^ The pointed monoid accumulating path traces
   }
 
-instance Monoid e ⇒ Monoid (ErrorTrace t e) where
+instance (Monoid e, Monoid (ft (Seq t))) ⇒ Monoid (ErrorTrace t ft e) where
   mempty = ErrorTrace mempty mempty
   mappend (ErrorTrace e tr) (ErrorTrace e' tr') = ErrorTrace (e <> e') (tr <> tr')
 
-instance (Show t, Show e) ⇒ Show (ErrorTrace t e) where
+instance (F.Foldable ft, Show t, Show e) ⇒ Show (ErrorTrace t ft e) where
   showsPrec p ErrorTrace{..} =
     showParen (p > 10) $
-      foldr (.) id (intersperse (" ∥ "++) $ (foldr (.) id . intersperse ('.':) . fmap shows . F.toList) <$> _etTrace)
+      foldr (.) id (intersperse (" ∥ "++) $ (foldr (.) id . intersperse ('.':) . fmap shows . F.toList) <$> F.toList _etTrace)
       . (" ⇑ " ++)
       . shows _etError
 
@@ -40,8 +42,8 @@ _ErrorTrace
   ∷ ( Choice p
     , Functor f
     )
-  ⇒ p (ErrorTrace t e) (f (ErrorTrace t' e'))
-  → p (e, [Seq t]) (f (e', [Seq t']))
+  ⇒ p (ErrorTrace t ft e) (f (ErrorTrace t' ft e'))
+  → p (e, ft (Seq t)) (f (e', ft (Seq t')))
 _ErrorTrace =
   dimap (uncurry ErrorTrace)
   . fmap $ \ErrorTrace{..} → (_etError, _etTrace)
@@ -51,8 +53,8 @@ _ErrorTrace =
 etError
   ∷ Functor f
   ⇒ (e → f e')
-  → ErrorTrace t e
-  → f (ErrorTrace t e')
+  → ErrorTrace t ft e
+  → f (ErrorTrace t ft e')
 etError inj ErrorTrace{..} =
   flip ErrorTrace _etTrace
     <$> inj _etError
@@ -61,10 +63,9 @@ etError inj ErrorTrace{..} =
 --
 etTrace
   ∷ Functor f
-  ⇒ ([Seq t] → f [Seq t'])
-  → ErrorTrace t e
-  → f (ErrorTrace t' e)
+  ⇒ (ft (Seq t) → f (ft (Seq t')))
+  → ErrorTrace t ft e
+  → f (ErrorTrace t' ft e)
 etTrace inj ErrorTrace{..} =
   ErrorTrace _etError
     <$> inj _etTrace
-
